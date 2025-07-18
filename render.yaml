@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: ecommerce-analytics-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn solution_script:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.16
