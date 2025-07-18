@@ -46,77 +46,82 @@ curl http://localhost:8000/api/products
 {
   "products": [
     {
-      "product_name": "Gaming Laptop",
-      "price": 1299.99,
-      "total_count": 2
+      "product_name": "Gaming Laptop"
     }
   ],
-  "total_products": 20
+  "total_products": 20,
+  "summary": {
+    "total_revenue": 15234.50
+  }
 }
 ```
 
 ## 📊 API Endpoints Guide
 
-### Working Enhancement Endpoint
+> 📋 **For detailed request/response payloads and implementation requirements, see [APICONFIG.md](APICONFIG.md)**
+
+### Enhancement Challenge - Basic
 **`GET /api/products`** - Product Performance Metrics
 - **Business Purpose**: Inventory management and product performance analysis
-- **Current Status**: ✅ Working but incomplete
-- **Enhancement Required**: Add `average_rating`, `total_revenue`, `category`, and summary section
-- **Usage**: Provides product managers with KPIs for decision making
+- **Current Status**: ✅ Working but incomplete - missing key business metrics
+- **Enhancement Required**: Add `price`, `total_count`, `average_rating`, `total_revenue`, and `category` fields for each product
+- **Your Task**: Transform basic product list into comprehensive product performance analytics
+- **Usage**: Provides product managers with KPIs for inventory and pricing decisions
+- **Sample Request**: `curl http://localhost:8000/api/products`
 
-### Easy Debug Challenge
-**`GET /api/dashboard?days=30`** - Executive Dashboard Summary
-- **Business Purpose**: C-suite KPIs for strategic decisions
-- **Current Status**: 🐛 Broken with obvious bugs
-- **Your Task**: Fix date filtering, aggregation methods, and calculation errors
-- **Sample Request**: `curl http://localhost:8000/api/dashboard?days=30`
-
-### Intermediate Debug Challenge
+### Debug Challenge - Intermediate  
 **`GET /api/categories`** - Category Performance Analysis
-- **Business Purpose**: Merchandising team insights for inventory optimization
-- **Current Status**: 🐛 Broken with complex logic errors
-- **Your Task**: Fix groupby operations, percentage calculations, and data processing
+- **Business Purpose**: Merchandising team insights for inventory optimization and category management
+- **Current Status**: 🐛 Broken with multiple complex data science bugs
+- **Your Task**: Debug 5 subtle data processing errors affecting revenue calculations and metrics
+- **Known Issues**: 
+  - Incorrect aggregation methods
+  - Wrong column references for calculations
+  - Missing error handling for edge cases
+  - Improper data type handling
 - **Sample Request**: `curl http://localhost:8000/api/categories`
-
-### Build-from-Scratch - Intermediate
-**`GET /api/demographics`** - Customer Demographics Analysis
-- **Business Purpose**: Marketing team segmentation for targeted campaigns
-- **Current Status**: 🔧 Empty function - needs complete implementation
-- **Requirements**:
-  - Age group analysis (18-25, 26-35, 36-45, 46-55, 56+)
-  - Spending patterns by demographic
-  - Average ratings by age group
-  - Transaction frequency analysis
-- **Sample Request**: `curl http://localhost:8000/api/demographics`
 
 ### Build-from-Scratch - Advanced
 **`GET /api/revenue-insights`** - Comprehensive Revenue Analysis
-- **Business Purpose**: CFO and strategic planning for budget and growth strategy
-- **Current Status**: 🔧 Empty function - complex analytical implementation needed
+- **Business Purpose**: CFO and strategic planning for budget forecasting and growth strategy
+- **Current Status**: 🔧 Empty function with placeholder data - needs complete implementation
+- **Your Task**: Build comprehensive revenue analytics with advanced business intelligence
 - **Requirements**:
-  - Monthly revenue trends with growth rates
-  - Top performing products by revenue
-  - Customer value segmentation (high/medium/low)
-  - Seasonal pattern identification
-  - Revenue forecasting insights
+  - **Monthly Trends**: Revenue analysis with month-over-month growth rates
+  - **Top Products**: Revenue ranking and contribution analysis (top 2 products only)
+  - **Category Distribution**: Revenue breakdown by product category
+  - **Customer Segmentation**: High/Medium/Low value customer analysis based on spending
+  - **Growth Metrics**: Overall growth rates, trend identification, seasonal patterns
+  - **Forecasting**: Predictive analytics for next month revenue with confidence levels
 - **Sample Request**: `curl http://localhost:8000/api/revenue-insights`
 
 ## 🎯 Challenge Objectives
 
-### Enhancement Task
-Improve the working `/api/products` endpoint by adding:
-- `average_rating` field for each product
-- `total_revenue` field for each product  
-- `category` field for each product
-- Summary section with overall statistics
+### Enhancement Task (20 points)
+**Improve the `/api/products` endpoint by adding missing business metrics:**
+- `price` field for each product (current product price)
+- `total_count` field for each product (total units sold)
+- `average_rating` field for each product (average customer rating)
+- `total_revenue` field for each product (total revenue generated)
+- `category` field for each product (product category)
+- Enhanced summary section with additional statistics (top performer, lowest performer, average rating)
 
-### Debug Tasks
-1. **Easy**: Fix obvious bugs in `/api/dashboard` (date logic, aggregations)
-2. **Intermediate**: Resolve complex issues in `/api/categories` (groupby, calculations)
+### Debug Task (30 points)
+**Fix all bugs in `/api/categories` endpoint:**
+1. Identify and fix incorrect aggregation methods
+2. Correct wrong column references in calculations  
+3. Add proper error handling for division by zero
+4. Fix data type and NaN value handling issues
+5. Correct count calculations using appropriate data
 
-### Implementation Tasks
-1. **Intermediate**: Complete `/api/demographics` with age group analysis
-2. **Advanced**: Build comprehensive `/api/revenue-insights` with forecasting
+### Implementation Task (50 points)
+**Complete `/api/revenue-insights` endpoint with advanced analytics:**
+- Monthly revenue trends with growth rate calculations
+- Top 2 products by revenue with contribution percentages
+- Category revenue distribution analysis
+- Customer value segmentation (High: >$200, Medium: $50-$200, Low: <$50)
+- Growth metrics and trend analysis
+- Revenue forecasting with business insights
 
 ## 📋 Dataset Information
 
@@ -196,55 +201,81 @@ code-a-thon/
 ├── main.py           # ✅ Complete FastAPI application
 ├── requirements.txt  # ✅ Python dependencies
 ├── sales_data.csv    # ✅ E-commerce transaction dataset
-├── APICONFIG.md      # ✅ API request/response documentation
+├── APICONFIG.md      # ✅ Detailed API request/response documentation
 └── README.md         # ✅ This setup guide
 ```
 
 ### Submission Checklist
-- [ ] **Easy Debug** (10 pts): `/api/dashboard` bugs fixed and working correctly
-- [ ] **Intermediate Debug** (20 pts): `/api/categories` complex issues resolved
-- [ ] **Enhancement** (20 pts): `/api/products` endpoint improved with additional fields
-- [ ] **Intermediate Build** (25 pts): `/api/demographics` fully implemented
-- [ ] **Advanced Build** (25 pts): `/api/revenue-insights` complete with forecasting
+- [ ] **Enhancement** (20 pts): `/api/products` endpoint improved with price, total_count, average_rating, total_revenue, and category fields
+- [ ] **Debug Challenge** (30 pts): `/api/categories` all 5 bugs identified and fixed
+- [ ] **Advanced Implementation** (50 pts): `/api/revenue-insights` fully implemented with comprehensive analytics
 - [ ] **Code Quality**: Clean, documented code with proper error handling
 - [ ] **Testing**: All endpoints tested and returning expected responses
+- [ ] **Deployment**: API successfully deployed and accessible
 
 ## 🔧 Development Tips
 
-### Data Analysis Hints
+### Data Analysis Hints for Revenue Insights
 ```python
-# Age group segmentation
-age_bins = [17, 25, 35, 45, 55, 100]
-age_labels = ['18-25', '26-35', '36-45', '46-55', '56+']
-df['age_group'] = pd.cut(df['customer_age'], bins=age_bins, labels=age_labels)
-
-# Monthly trends
+# Monthly trends analysis
 df['month'] = df['purchase_date'].dt.to_period('M')
 monthly_data = df.groupby('month')['revenue'].sum()
 
-# Customer segmentation by spending
-def categorize_customer_value(avg_order):
-    if avg_order > 200:
+# Growth rate calculation
+prev_revenue = None
+for month, revenue in monthly_data.items():
+    if prev_revenue is not None:
+        growth_rate = ((revenue - prev_revenue) / prev_revenue) * 100
+    prev_revenue = revenue
+
+# Customer value segmentation
+def categorize_customer_value(revenue):
+    if revenue > 200:
         return "High Value"
-    elif avg_order > 50:
+    elif revenue >= 50:
         return "Medium Value"
     else:
         return "Low Value"
+
+# Top products analysis
+top_products = df.groupby('product_name')['revenue'].sum().nlargest(2)
 ```
 
-### Common Debug Issues
-1. **Date Filtering**: Use `datetime.now() - timedelta(days=days)` not plus
-2. **Aggregation**: Use correct column names (`revenue` not `price` for totals)
-3. **Percentage Calculation**: Multiply by 100, not 10
-4. **GroupBy**: Remember to call `reset_index()` when needed
-5. **Missing Values**: Handle NaN ratings with `dropna()` or fillna methods
+### Common Debug Issues in Categories Endpoint
+1. **Aggregation Methods**: Check if using correct aggregation functions (mean vs first)
+2. **Column References**: Verify using correct column names for calculations
+3. **Division by Zero**: Add proper checks before percentage calculations
+4. **Data Types**: Handle NaN values and data type conversions properly
+5. **Count Logic**: Ensure using appropriate columns for counting categories vs products
+
+### Products Enhancement Guidelines
+```python
+# Product-level aggregations needed
+product_metrics = sales_df.groupby('product_name').agg({
+    'price': 'first',           # Current price
+    'quantity': 'sum',          # Total units sold
+    'customer_rating': 'mean',  # Average rating
+    'revenue': 'sum',          # Total revenue
+    'category': 'first'        # Product category
+})
+
+# Summary statistics for enhanced response
+total_revenue = sales_df['revenue'].sum()
+avg_rating = sales_df['customer_rating'].mean()
+top_performer = product_metrics['revenue'].idxmax()
+lowest_performer = product_metrics['revenue'].idxmin()
+```
 
 ### API Best Practices
 - Always include try-catch blocks for error handling
-- Validate query parameters with FastAPI's Query validators
-- Return consistent response formats across endpoints
-- Include business context in docstrings
 - Round monetary values to 2 decimal places
+- Handle missing/NaN values appropriately
+- Use consistent response formats across endpoints
+- Include business context in docstrings
+- Validate data before calculations
+
+### Expected Response Formats
+For detailed API specifications including request/response payloads, field requirements, and expected data formats, refer to **[APICONFIG.md](APICONFIG.md)**.
 
 ## 📚 Resources
 
@@ -320,13 +351,10 @@ pip install -r requirements.txt
 
 ### Testing Endpoints
 ```bash
-# Test all endpoints
-curl http://localhost:8000/
+# Test all available endpoints
 curl http://localhost:8000/health
 curl http://localhost:8000/api/products
-curl http://localhost:8000/api/dashboard?days=30
 curl http://localhost:8000/api/categories
-curl http://localhost:8000/api/demographics
 curl http://localhost:8000/api/revenue-insights
 ```
 
@@ -340,17 +368,17 @@ curl http://localhost:8000/api/revenue-insights
 
 ### Working API Signs
 - ✅ All endpoints return 200 status codes
-- ✅ JSON responses match expected format in APICONFIG.md
+- ✅ JSON responses match expected format
 - ✅ No 500 internal server errors
-- ✅ Dashboard shows realistic business metrics
-- ✅ Demographics endpoint provides age group insights
-- ✅ Revenue insights include forecasting data
+- ✅ Products endpoint shows enhanced metrics
+- ✅ Categories endpoint provides accurate analytics
+- ✅ Revenue insights include comprehensive forecasting data
 
 ### Bonus Points
 - 🌟 Additional business insights beyond requirements
-- 🌟 Creative data visualizations in responses
-- 🌟 Advanced analytics (forecasting, trend analysis)
+- 🌟 Advanced analytics (trend analysis, seasonality detection)
 - 🌟 Comprehensive error handling with meaningful messages
 - 🌟 Performance optimizations for large datasets
+- 🌟 Creative business intelligence features
 
-Good luck with your e-commerce analytics API! 🚀
+Good luck with your e-commerce analytics API challenge! 🚀
