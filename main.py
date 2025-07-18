@@ -1,317 +1,408 @@
 """
-E-commerce Analytics API - Code-a-thon Challenge
-
-Business Context:
-This API serves an online retail platform's analytics dashboard, providing insights
-into sales performance, customer demographics, and product analytics. The system
-processes transaction data to generate business intelligence reports for management
-decision-making.
-
-Dataset Description:
-The API analyzes 6 months of e-commerce transaction data containing product sales,
-customer demographics, and performance metrics. Data includes transactions across
-multiple product categories with customer ratings and revenue calculations.
-
-API Purpose:
-Provides RESTful endpoints for:
-- Product performance analysis
-- Sales dashboard summaries
-- Category performance metrics
-- Customer demographic insights
-- Revenue trend analysis
+E-commerce Analytics API
+A FastAPI application providing comprehensive analytics for e-commerce transactions.
 """
 
 from fastapi import FastAPI, HTTPException, Query
-from typing import List, Dict, Any, Optional
+from fastapi.responses import JSONResponse
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from dateutil import parser
-import uvicorn
+from typing import Optional, Dict, List, Any
+import logging
 
-# Initialize FastAPI application
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize FastAPI app
 app = FastAPI(
     title="E-commerce Analytics API",
-    description="Analytics API for e-commerce transaction data analysis",
+    description="Comprehensive analytics API for e-commerce transaction data",
     version="1.0.0"
 )
 
-# Global DataFrame for transaction data
-df = None
+# Global DataFrame to store sales data
+sales_df: Optional[pd.DataFrame] = None
 
-# Data Loading Section
-def load_sales_data():
+def load_sales_data() -> None:
     """
-    Load e-commerce sales data from CSV file with error handling
-    and data type optimization for performance.
+    Load sales data from CSV file with error handling and data type optimization.
+    Performs initial data validation and preprocessing for analytics operations.
     """
-    global df
+    global sales_df
     try:
-        # Load CSV with optimized data types
-        df = pd.read_csv('sales_data.csv')
+        # Load CSV with optimized data types for performance
+        sales_df = pd.read_csv('sales_data.csv')
         
-        # Convert date column to datetime
-        df['purchase_date'] = pd.to_datetime(df['purchase_date'])
+        # Data type optimization
+        sales_df['transaction_id'] = sales_df['transaction_id'].astype('category')
+        sales_df['product_name'] = sales_df['product_name'].astype('category')
+        sales_df['category'] = sales_df['category'].astype('category')
+        sales_df['price'] = pd.to_numeric(sales_df['price'], errors='coerce')
+        sales_df['quantity'] = pd.to_numeric(sales_df['quantity'], errors='coerce')
+        sales_df['customer_age'] = pd.to_numeric(sales_df['customer_age'], errors='coerce')
+        sales_df['customer_rating'] = pd.to_numeric(sales_df['customer_rating'], errors='coerce')
+        sales_df['revenue'] = pd.to_numeric(sales_df['revenue'], errors='coerce')
         
-        # Optimize data types
-        df['transaction_id'] = df['transaction_id'].astype('string')
-        df['product_name'] = df['product_name'].astype('string')
-        df['category'] = df['category'].astype('category')
-        df['price'] = df['price'].astype('float32')
-        df['quantity'] = df['quantity'].astype('int16')
-        df['customer_age'] = df['customer_age'].astype('int16')
-        df['customer_rating'] = df['customer_rating'].astype('float32')
-        df['revenue'] = df['revenue'].astype('float32')
+        # Convert purchase_date to datetime
+        sales_df['purchase_date'] = pd.to_datetime(sales_df['purchase_date'])
         
-        print(f"Successfully loaded {len(df)} transaction records")
-        return True
+        # Remove any rows with critical missing data
+        sales_df = sales_df.dropna(subset=['product_name', 'category', 'price', 'revenue'])
+        
+        logger.info(f"Successfully loaded {len(sales_df)} records from sales_data.csv")
         
     except FileNotFoundError:
-        print("Error: sales_data.csv not found in current directory")
-        return False
+        logger.error("sales_data.csv file not found")
+        raise HTTPException(status_code=500, detail="Sales data file not found")
     except Exception as e:
-        print(f"Error loading data: {str(e)}")
-        return False
+        logger.error(f"Error loading sales data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error loading sales data: {str(e)}")
+
+def create_error_response(detail: str, status_code: int = 500) -> Dict[str, Any]:
+    """
+    Create standardized error response format for consistent API error handling.
+    
+    Args:
+        detail: Error description message
+        status_code: HTTP status code for the error
+        
+    Returns:
+        Standardized error response dictionary
+    """
+    return {
+        "detail": detail,
+        "status_code": status_code,
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
 
 # Load data on startup
-if not load_sales_data():
-    print("Warning: Could not load sales data. API will return errors.")
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application by loading sales data."""
+    load_sales_data()
 
-# Section 1: Working Enhancement Endpoint
 @app.get("/api/products")
-def get_product_list():
+def get_product_list() -> Dict[str, Any]:
     """
-    Retrieve product performance metrics for inventory management.
+    Retrieve basic product list information.
     
-    Business Purpose: Provides product managers with key performance indicators
-    for each product including pricing, sales volume, and revenue contribution.
+    Business Purpose: Provides a simple list of products available in the system.
     
-    Current Status: Working but incomplete - missing additional fields and summary
-    Enhancement Required: Add average_rating, total_revenue, and summary statistics
+    Returns:
+        Basic product list with product names and summary statistics
     """
-    if df is None:
-        raise HTTPException(status_code=500, detail="Data not loaded")
-    
     try:
-        # Current working implementation (incomplete)
-        product_metrics = df.groupby('product_name').agg({
-            'price': 'mean',
-            'quantity': 'sum'
-        }).reset_index()
+        if sales_df is None or sales_df.empty:
+            raise HTTPException(status_code=500, detail="No sales data available")
         
-        product_metrics.columns = ['product_name', 'price', 'total_count']
-        product_metrics['price'] = product_metrics['price'].round(2)
+        # Get unique products
+        unique_products = sales_df['product_name'].unique()
         
-        # Convert to list of dictionaries for JSON response
-        products = product_metrics.to_dict('records')
+        # Build simple product list
+        products = []
+        for product_name in unique_products:
+            products.append({
+                "product_name": str(product_name)
+            })
+        
+        # Calculate basic summary metrics
+        total_revenue = float(sales_df['revenue'].sum())
         
         return {
             "products": products,
-            "total_products": len(products)
+            "total_products": len(products),
+            "summary": {
+                "total_revenue": round(total_revenue, 2)
+            }
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing product data: {str(e)}")
+        logger.error(f"Error in get_product_list: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(f"Error retrieving product data: {str(e)}")
+        )
 
-# Section 2: Easy Debug Endpoint
 @app.get("/api/dashboard")
-def get_dashboard_summary(days: int = Query(30, ge=1, le=180)):
+def get_dashboard_summary(days: int = Query(30, ge=1, le=180)) -> Dict[str, Any]:
     """
-    Generate executive dashboard summary with key business metrics.
+    Generate executive dashboard summary with key business metrics for specified time period.
     
-    Business Purpose: Provides C-suite executives with high-level KPIs
-    for strategic decision making and performance monitoring.
+    Business Purpose: Provides executives with high-level performance indicators 
+    for operational decision-making and trend monitoring.
     
-    Current Status: Broken with obvious bugs
+    Args:
+        days: Number of days to analyze (1-180, default: 30)
+        
+    Returns:
+        Dashboard metrics including revenue, transactions, and performance indicators
     """
-    if df is None:
-        raise HTTPException(status_code=500, detail="Data not loaded")
-    
     try:
-        cutoff_date = datetime.now() + timedelta(days=days)
-        recent_data = df[df['purchase_date'] > cutoff_date]
-
-        total_revenue = recent_data['price'].sum() 
+        if sales_df is None or sales_df.empty:
+            raise HTTPException(status_code=500, detail="No sales data available")
         
-        avg_order_value = recent_data['quantity'].mean()
+        # Calculate date filter for business period analysis
+        end_date = sales_df['purchase_date'].max()
+        start_date = end_date - timedelta(days=days)
         
-        total_transactions = len(recent_data['product_name'].unique())
+        # Filter data for specified business period
+        period_data = sales_df[sales_df['purchase_date'] >= start_date]
         
-        avg_rating = recent_data['customer_rating'].max()
+        if period_data.empty:
+            return {
+                "period_days": days,
+                "total_revenue": 0.0,
+                "total_transactions": 0,
+                "average_order_value": 0.0,
+                "average_rating": 0.0,
+                "data_points": 0
+            }
+        
+        # Calculate key business performance indicators
+        total_revenue = float(period_data['revenue'].sum())
+        total_transactions = len(period_data)
+        avg_order_value = total_revenue / total_transactions if total_transactions > 0 else 0.0
+        avg_rating = float(period_data['customer_rating'].mean()) if period_data['customer_rating'].notna().any() else 0.0
         
         return {
             "period_days": days,
             "total_revenue": round(total_revenue, 2),
             "total_transactions": total_transactions,
             "average_order_value": round(avg_order_value, 2),
-            "average_rating": round(avg_rating, 2),
-            "data_points": len(recent_data)
+            "average_rating": round(avg_rating, 1),
+            "data_points": total_transactions
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating dashboard: {str(e)}")
+        logger.error(f"Error in get_dashboard_summary: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(f"Error generating dashboard summary: {str(e)}")
+        )
 
-# Section 3: Intermediate Debug Endpoint
 @app.get("/api/categories")
-def get_category_performance():
+def get_category_performance() -> Dict[str, Any]:
     """
-    Analyze category performance metrics for merchandising decisions.
+    Analyze category-level performance metrics for strategic category management.
     
-    Business Purpose: Enables merchandising teams to understand category
-    performance, optimize inventory allocation, and identify growth opportunities.
+    Business Purpose: Enables category managers to optimize product mix, pricing strategies,
+    and inventory allocation based on category performance data.
     
-    Current Status: Broken with complex logic errors
+    Returns:
+        Category performance metrics with revenue distribution and customer satisfaction
     """
-    if df is None:
-        raise HTTPException(status_code=500, detail="Data not loaded")
-    
     try:
-        category_stats = df.groupby('category').agg({
-            'revenue': ['sum', 'mean', 'count'],
+        if sales_df is None or sales_df.empty:
+            raise HTTPException(status_code=500, detail="No sales data available")
+        
+        # Calculate category-level business metrics for strategic analysis
+        # Bug 1: Using 'first' instead of 'mean' for average calculations
+        category_metrics = sales_df.groupby('category').agg({
+            'revenue': ['sum', 'first', 'count'],  # Should be 'mean' not 'first'
             'customer_rating': 'mean',
             'quantity': 'sum'
-        })
-        category_stats.columns = ['_'.join(col).strip() for col in category_stats.columns.values]
+        }).round(2)
         
-        total_revenue = df['revenue'].sum()
-        category_stats['revenue_percentage'] = (category_stats['revenue_sum'] / total_revenue) * 10
+        # Flatten multi-level column names for easier access
+        category_metrics.columns = ['total_revenue', 'avg_revenue_per_transaction', 'transaction_count', 'avg_rating', 'total_units_sold']
         
-        category_stats = category_stats.sort_values('revenue_mean', ascending=True)
+        # Bug 2: Using wrong column for total revenue calculation
+        total_revenue = float(sales_df['price'].sum())  # Should be 'revenue' not 'price'
         
-        # Bug: Incorrect column renaming
-        category_stats = category_stats.rename(columns={
-            'revenue_sum': 'total_revenue',
-            'revenue_mean': 'avg_revenue_per_transaction',
-            'revenue_count': 'transaction_count',
-            'customer_rating_mean': 'avg_rating',
-            'quantity_sum': 'total_units_sold'
-        })
+        # Build category performance report for management
+        categories = []
+        for category_name, metrics in category_metrics.iterrows():
+            # Bug 3: Division by zero not handled properly
+            revenue_percentage = (metrics['total_revenue'] / total_revenue * 100)  # Missing zero check
+            
+            categories.append({
+                "category": str(category_name),
+                "total_revenue": float(metrics['total_revenue']),
+                "avg_revenue_per_transaction": float(metrics['avg_revenue_per_transaction']),
+                "transaction_count": int(metrics['transaction_count']),
+                "avg_rating": float(metrics['avg_rating']) if pd.notna(metrics['avg_rating']) else None,
+                "total_units_sold": int(metrics['total_units_sold']),
+                # Bug 4: Using wrong variable name
+                "revenue_percentage": round(revenue_percentage, 1)  # Should handle NaN/inf values
+            })
         
-        results = category_stats.to_dict('records')
+        # Bug 5: Incorrect calculation - using wrong data
+        total_categories = len(sales_df['product_name'].unique())  # Should be category, not product_name
         
         return {
-            "categories": results,
-            "total_categories": len(results)
+            "categories": categories,
+            "total_categories": total_categories
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing categories: {str(e)}")
+        logger.error(f"Error in get_category_performance: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(f"Error analyzing category performance: {str(e)}")
+        )
 
-# Section 4: Intermediate Build-from-Scratch
 @app.get("/api/demographics")
-def analyze_customer_demographics():
+def analyze_customer_demographics() -> Dict[str, Any]:
     """
-    Analyze customer demographics for targeted marketing campaigns.
+    Perform customer demographic analysis for targeted marketing and customer segmentation.
     
-    Business Purpose: Provides marketing teams with customer segmentation insights
-    to develop targeted campaigns, personalized offers, and improve customer acquisition.
+    Business Purpose: Supports marketing teams in developing age-targeted campaigns
+    and helps identify high-value customer segments for retention strategies.
     
-    Requirements:
-    - Age group analysis (18-25, 26-35, 36-45, 46-55, 56+)
-    - Spending patterns by age group
-    - Average ratings by demographic
-    - Transaction frequency analysis
-    
-    Current Status: Empty function - complete implementation needed
+    Returns:
+        Customer demographic breakdown with spending patterns and engagement metrics
     """
-    if df is None:
-        raise HTTPException(status_code=500, detail="Data not loaded")
-    
     try:
-        # TODO: Implement customer demographic analysis
-        # Hint: Use pd.cut() for age groups
-        # Calculate spending patterns, ratings, and transaction counts per group
+        if sales_df is None or sales_df.empty:
+            raise HTTPException(status_code=500, detail="No sales data available")
         
-        # Placeholder return - replace with actual implementation
+        # Remove rows with missing age data for accurate demographic analysis
+        valid_age_data = sales_df.dropna(subset=['customer_age'])
+        
+        if valid_age_data.empty:
+            raise HTTPException(status_code=500, detail="No valid customer age data available")
+        
+        # Define age groups for marketing segmentation
+        def categorize_age(age):
+            if age <= 25:
+                return "18-25"
+            elif age <= 35:
+                return "26-35"
+            elif age <= 45:
+                return "36-45"
+            elif age <= 55:
+                return "46-55"
+            else:
+                return "56+"
+        
+        # Apply age segmentation for demographic analysis
+        valid_age_data = valid_age_data.copy()
+        valid_age_data['age_group'] = valid_age_data['customer_age'].apply(categorize_age)
+        
+        # Calculate demographic metrics for marketing intelligence
+        demo_metrics = valid_age_data.groupby('age_group').agg({
+            'customer_age': 'count',  # Customer count per segment
+            'revenue': ['sum', 'mean', 'count'],  # Revenue and spending patterns
+            'customer_rating': 'mean'  # Customer satisfaction by age group
+        }).round(2)
+        
+        # Flatten column names for easier processing
+        demo_metrics.columns = ['customer_count', 'total_revenue', 'avg_spending', 'transaction_count', 'avg_rating']
+        
+        # Calculate total revenue for percentage analysis
+        total_revenue = float(valid_age_data['revenue'].sum())
+        
+        # Build demographic analysis for marketing strategy
+        age_groups = []
+        age_order = ["18-25", "26-35", "36-45", "46-55", "56+"]  # Ordered for reporting
+        
+        for age_range in age_order:
+            if age_range in demo_metrics.index:
+                metrics = demo_metrics.loc[age_range]
+                revenue_percentage = (metrics['total_revenue'] / total_revenue * 100) if total_revenue > 0 else 0.0
+                
+                age_groups.append({
+                    "age_range": age_range,
+                    "customer_count": int(metrics['customer_count']),
+                    "avg_spending": float(metrics['avg_spending']),
+                    "total_revenue": float(metrics['total_revenue']),
+                    "avg_rating": float(metrics['avg_rating']) if pd.notna(metrics['avg_rating']) else None,
+                    "transaction_count": int(metrics['transaction_count']),
+                    "revenue_percentage": round(revenue_percentage, 1)
+                })
+        
+        # Calculate summary insights for strategic planning
+        if not demo_metrics.empty:
+            highest_spending_group = demo_metrics['avg_spending'].idxmax()
+            largest_group = demo_metrics['customer_count'].idxmax()
+            highest_rated_group = demo_metrics['avg_rating'].idxmax() if demo_metrics['avg_rating'].notna().any() else None
+            total_customers = int(demo_metrics['customer_count'].sum())
+        else:
+            highest_spending_group = None
+            largest_group = None
+            highest_rated_group = None
+            total_customers = 0
+        
         return {
-            "message": "Implementation needed",
-            "requirements": [
-                "Age group segmentation",
-                "Spending analysis by age group",
-                "Average ratings by demographic",
-                "Transaction frequency by age group"
-            ]
+            "age_groups": age_groups,
+            "summary": {
+                "total_customers": total_customers,
+                "highest_spending_group": str(highest_spending_group) if highest_spending_group else None,
+                "largest_group": str(largest_group) if largest_group else None,
+                "highest_rated_group": str(highest_rated_group) if highest_rated_group else None
+            }
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing demographics: {str(e)}")
+        logger.error(f"Error in analyze_customer_demographics: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(f"Error analyzing customer demographics: {str(e)}")
+        )
 
-# Section 5: Hard Build-from-Scratch
 @app.get("/api/revenue-insights")
-def generate_revenue_insights():
+def generate_revenue_insights() -> Dict[str, Any]:
     """
-    Generate comprehensive revenue insights for strategic planning.
+    Generate comprehensive revenue insights with trends, forecasting, and strategic recommendations.
     
-    Business Purpose: Provides CFO and strategic planning teams with detailed
-    revenue analysis including trends, forecasts, and performance indicators
-    for budget planning and growth strategy development.
+    Business Purpose: Provides executive leadership with advanced analytics for strategic planning,
+    revenue optimization, and business growth initiatives.
     
-    Requirements:
-    - Monthly revenue trends over the dataset period
-    - Top performing products by revenue contribution
-    - Revenue growth rate calculations
-    - Seasonal pattern identification
-    - Product category revenue distribution
-    - Customer value segmentation (high/medium/low value)
-    
-    Current Status: Empty function - complex analytical implementation needed
+    Returns:
+        Advanced revenue analytics including trends, forecasting, and customer segmentation
     """
-    if df is None:
-        raise HTTPException(status_code=500, detail="Data not loaded")
-    
     try:
-        # TODO: Implement comprehensive revenue analysis
-        # This is the most complex endpoint requiring:
-        # 1. Time series analysis for monthly trends
-        # 2. Growth rate calculations
-        # 3. Customer value segmentation
-        # 4. Product performance ranking
-        # 5. Seasonal pattern detection
-        # 6. Statistical analysis and forecasting
+        if sales_df is None or sales_df.empty:
+            raise HTTPException(status_code=500, detail="No sales data available")
         
-        # Placeholder return - replace with actual implementation
+        # TODO: Implement actual logic - currently returning placeholder data
+        # Candidates need to implement the full logic for this endpoint
+        
         return {
-            "message": "Complex implementation needed",
-            "requirements": [
-                "Monthly revenue trends analysis",
-                "Top performing products identification",
-                "Revenue growth rate calculations",
-                "Seasonal pattern analysis",
-                "Category revenue distribution",
-                "Customer value segmentation"
-            ]
+            "monthly_trends": [
+                {"month": "2024-01", "revenue": 0.0, "transaction_count": 0, "growth_rate": None},
+                {"month": "2024-02", "revenue": 0.0, "transaction_count": 0, "growth_rate": 0.0}
+            ],
+            "top_products": [
+                {"product_name": "placeholder", "total_revenue": 0.0, "revenue_contribution": 0.0, "rank": 1},
+                {"product_name": "placeholder", "total_revenue": 0.0, "revenue_contribution": 0.0, "rank": 2}
+            ],
+            "category_distribution": [
+                {"category": "placeholder", "revenue": 0.0, "percentage": 0.0}
+            ],
+            "customer_segments": [
+                {"segment": "High Value", "customer_count": 0, "avg_order_value": 0.0, "total_revenue": 0.0, "criteria": "Orders > $200"},
+                {"segment": "Medium Value", "customer_count": 0, "avg_order_value": 0.0, "total_revenue": 0.0, "criteria": "Orders $50-$200"},
+                {"segment": "Low Value", "customer_count": 0, "avg_order_value": 0.0, "total_revenue": 0.0, "criteria": "Orders < $50"}
+            ],
+            "growth_metrics": {
+                "overall_growth_rate": 0.0,
+                "revenue_trend": "insufficient_data",
+                "best_performing_month": None,
+                "seasonal_pattern": "slight_decline_in_march"
+            },
+            "forecasting": {
+                "predicted_next_month_revenue": 0.0,
+                "confidence_level": "medium",
+                "key_drivers": ["electronics_sales", "customer_retention"]
+            }
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating revenue insights: {str(e)}")
+        logger.error(f"Error in generate_revenue_insights: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content=create_error_response(f"Error generating revenue insights: {str(e)}")
+        )
 
-# Health check endpoint
+# Health check endpoint for monitoring
 @app.get("/health")
 def health_check():
-    """Simple health check endpoint"""
-    return {
-        "status": "healthy",
-        "data_loaded": df is not None,
-        "timestamp": datetime.now().isoformat()
-    }
+    """API health check endpoint for monitoring and deployment verification."""
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
-# Root endpoint with API information
-@app.get("/")
-def root():
-    """API information and available endpoints"""
-    return {
-        "message": "E-commerce Analytics API",
-        "version": "1.0.0",
-        "endpoints": {
-            "products": "/api/products - Product performance metrics",
-            "dashboard": "/api/dashboard - Executive dashboard summary",
-            "categories": "/api/categories - Category performance analysis",
-            "demographics": "/api/demographics - Customer demographic insights",
-            "revenue_insights": "/api/revenue-insights - Comprehensive revenue analysis"
-        },
-        "health": "/health - API health status"
-    }
-
-# Run the application
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
