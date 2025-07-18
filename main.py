@@ -122,27 +122,22 @@ def get_dashboard_summary(days: int = Query(30, ge=1, le=180)):
     Business Purpose: Provides C-suite executives with high-level KPIs
     for strategic decision making and performance monitoring.
     
-    Current Status: Broken with obvious bugs in date filtering and aggregation
+    Current Status: Broken with obvious bugs
     """
     if df is None:
         raise HTTPException(status_code=500, detail="Data not loaded")
     
     try:
-        # Bug 1: Wrong date filtering logic
-        cutoff_date = datetime.now() + timedelta(days=days)  # Should be minus, not plus
+        cutoff_date = datetime.now() + timedelta(days=days)
         recent_data = df[df['purchase_date'] > cutoff_date]
+
+        total_revenue = recent_data['price'].sum() 
         
-        # Bug 2: Wrong aggregation method for revenue
-        total_revenue = recent_data['price'].sum()  # Should use 'revenue' column
+        avg_order_value = recent_data['quantity'].mean()
         
-        # Bug 3: Incorrect calculation for average order value
-        avg_order_value = recent_data['quantity'].mean()  # Should be revenue/transaction count
+        total_transactions = len(recent_data['product_name'].unique())
         
-        # Bug 4: Wrong column for transaction count
-        total_transactions = len(recent_data['product_name'].unique())  # Should be len(recent_data)
-        
-        # Bug 5: Incorrect rating calculation
-        avg_rating = recent_data['customer_rating'].max()  # Should be mean(), not max()
+        avg_rating = recent_data['customer_rating'].max()
         
         return {
             "period_days": days,
@@ -165,30 +160,25 @@ def get_category_performance():
     Business Purpose: Enables merchandising teams to understand category
     performance, optimize inventory allocation, and identify growth opportunities.
     
-    Current Status: Broken with complex logic errors in groupby and calculations
+    Current Status: Broken with complex logic errors
     """
     if df is None:
         raise HTTPException(status_code=500, detail="Data not loaded")
     
     try:
-        # Bug 1: Incorrect groupby aggregation
         category_stats = df.groupby('category').agg({
             'revenue': ['sum', 'mean', 'count'],
             'customer_rating': 'mean',
             'quantity': 'sum'
         })
-        
-        # Bug 2: Wrong way to flatten MultiIndex columns
         category_stats.columns = ['_'.join(col).strip() for col in category_stats.columns.values]
         
-        # Bug 3: Incorrect percentage calculation
         total_revenue = df['revenue'].sum()
-        category_stats['revenue_percentage'] = (category_stats['revenue_sum'] / total_revenue) * 10  # Should be * 100
+        category_stats['revenue_percentage'] = (category_stats['revenue_sum'] / total_revenue) * 10
         
-        # Bug 4: Wrong sorting logic
-        category_stats = category_stats.sort_values('revenue_mean', ascending=True)  # Should be descending
+        category_stats = category_stats.sort_values('revenue_mean', ascending=True)
         
-        # Bug 5: Incorrect column renaming
+        # Bug: Incorrect column renaming
         category_stats = category_stats.rename(columns={
             'revenue_sum': 'total_revenue',
             'revenue_mean': 'avg_revenue_per_transaction',
@@ -197,7 +187,6 @@ def get_category_performance():
             'quantity_sum': 'total_units_sold'
         })
         
-        # Bug 6: Missing reset_index()
         results = category_stats.to_dict('records')
         
         return {
