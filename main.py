@@ -150,10 +150,7 @@ def get_top_selling_products_by_month(request: MonthRequest) -> TopMonthResponse
         product_revenue = month_data.groupby(['product_name', 'category']).agg({
             'revenue': 'sum'
         }).reset_index()
-        
-        # TODO: Change this to get TOP 5 products instead of top 3
         top_products = product_revenue.nlargest(3, 'revenue')
-        
         # Calculate total revenue for the month
         total_monthly_revenue = float(month_data['revenue'].sum())
         
