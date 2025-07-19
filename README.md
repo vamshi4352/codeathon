@@ -31,48 +31,50 @@ The `sales_data.csv` contains 250 e-commerce transactions with:
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### 1. Fork the Repository
+
+1. Go to the [GitHub repository](https://github.com/alumnx-ai-labs/codeathon).
+2. Click the **"Fork"** button in the top right corner.
+3. Choose your GitHub account as the destination.
+
+### 2. Clone Your Fork
+
+Replace `<your-username>` with your GitHub username:
 
 ```bash
-git clone https://github.com/alumnx-ai-labs/codeathon.git
+git clone https://github.com/<your-username>/codeathon.git
 cd codeathon
 ```
 
-### 2. Create Virtual Environment
+### 3. Create Virtual Environment
 
 #### For Linux/Mac:
 ```bash
-# Create virtual environment
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate
 ```
 
 #### For Windows:
 ```bash
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# For Command Prompt:
+# Command Prompt:
 venv\Scripts\activate
-
-# For PowerShell:
+# PowerShell:
 venv\Scripts\Activate.ps1
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Run the FastAPI Service
+### 5. Run the FastAPI Service
 
 ```bash
-# Start the development server
-uvicorn solution_script:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# or you can also use
+# python main.py
 ```
 
 The API will be available at:
