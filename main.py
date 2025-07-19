@@ -7,6 +7,7 @@ CHALLENGE INSTRUCTIONS:
 2. Complete the /api/categories endpoint implementation (currently incomplete)
 3. Debug and fix the /api/demographics endpoint (contains multiple bugs)
 
+Goto line 113 to start working on the first challenge.
 Good luck! May the best data scientist win! 🚀
 """
 
@@ -105,6 +106,10 @@ async def startup_event():
     """Initialize application by loading sales data."""
     load_sales_data()
 
+
+# ===============================================================================
+# API Endpoints start here
+# ===============================================================================
 @app.post("/api/get-top-month")
 def get_top_selling_products_by_month(request: MonthRequest) -> TopMonthResponse:
     """
@@ -150,7 +155,7 @@ def get_top_selling_products_by_month(request: MonthRequest) -> TopMonthResponse
         product_revenue = month_data.groupby(['product_name', 'category']).agg({
             'revenue': 'sum'
         }).reset_index()
-        top_products = product_revenue.nlargest(3, 'revenue')
+        top_products = product_revenue.nlargest(5, 'revenue')
         # Calculate total revenue for the month
         total_monthly_revenue = float(month_data['revenue'].sum())
         
@@ -181,50 +186,46 @@ def get_top_selling_products_by_month(request: MonthRequest) -> TopMonthResponse
 @app.get("/api/categories")
 def get_category_performance() -> Dict[str, Any]:
     """
-    CHALLENGE 2: Complete the implementation of this endpoint
-    
     Analyze category-level performance metrics for strategic category management.
     
     Business Purpose: Enables category managers to optimize product mix, pricing strategies,
     and inventory allocation based on category performance data.
-    
-    Expected Response Format:
-    {
-        "categories": [
-            {
-                "category": "Electronics",
-                "total_revenue": 15000.50,
-                "avg_revenue_per_transaction": 125.25,
-                "transaction_count": 120,
-                "avg_rating": 4.2,
-                "total_units_sold": 350,
-                "revenue_percentage": 35.5
-            }
-        ],
-        "total_categories": 5
-    }
-    
-    TODO: Implement the complete logic to calculate:
-    - total_revenue: Sum of all revenue for the category
-    - avg_revenue_per_transaction: Average revenue per transaction for the category
-    - transaction_count: Number of transactions for the category
-    - avg_rating: Average customer rating for the category
-    - total_units_sold: Sum of quantity sold for the category
-    - revenue_percentage: Percentage of total revenue contributed by this category
     """
     try:
         if sales_df is None or sales_df.empty:
             raise HTTPException(status_code=500, detail="No sales data available")
         
-        # TODO: Implement the category analysis logic here
-        # Hint: Use groupby operations and aggregations
-        # Remember to handle null values appropriately
+        # Calculate category-level business metrics for strategic analysis
+        category_metrics = sales_df.groupby('category').agg({
+            'revenue': ['sum', 'mean', 'count'],  # Revenue metrics
+            'customer_rating': 'mean',  # Customer satisfaction
+            'quantity': 'sum'  # Units sold
+        }).round(2)
         
-        # Placeholder return - replace with actual implementation
+        # Flatten multi-level column names for easier access
+        category_metrics.columns = ['total_revenue', 'avg_revenue_per_transaction', 'transaction_count', 'avg_rating', 'total_units_sold']
+        
+        # Calculate total revenue for percentage calculations
+        total_revenue = float(sales_df['revenue'].sum())
+        
+        # Build category performance report for management
+        categories = []
+        for category_name, metrics in category_metrics.iterrows():
+            revenue_percentage = (metrics['total_revenue'] / total_revenue * 100) if total_revenue > 0 else 0.0
+            
+            categories.append({
+                "category": str(category_name),
+                "total_revenue": float(metrics['total_revenue']),
+                "avg_revenue_per_transaction": float(metrics['avg_revenue_per_transaction']),
+                "transaction_count": int(metrics['transaction_count']),
+                "avg_rating": float(metrics['avg_rating']) if pd.notna(metrics['avg_rating']) else None,
+                "total_units_sold": int(metrics['total_units_sold']),
+                "revenue_percentage": round(revenue_percentage, 1)
+            })
+        
         return {
-            "categories": [],
-            "total_categories": 0,
-            "message": "TODO: Implement category analysis logic"
+            "categories": categories,
+            "total_categories": len(categories)
         }
         
     except Exception as e:
@@ -237,40 +238,13 @@ def get_category_performance() -> Dict[str, Any]:
 @app.get("/api/demographics")
 def analyze_customer_demographics() -> Dict[str, Any]:
     """
-    CHALLENGE 3: Debug and fix this endpoint - it contains multiple bugs!
-    
     Perform customer demographic analysis for targeted marketing and customer segmentation.
     
     Business Purpose: Supports marketing teams in developing age-targeted campaigns
     and helps identify high-value customer segments for retention strategies.
     
-    Expected Response Format:
-    {
-        "age_groups": [
-            {
-                "age_range": "18-25",
-                "customer_count": 150,
-                "avg_spending": 85.50,
-                "total_revenue": 12825.00,
-                "avg_rating": 4.1,
-                "transaction_count": 150,
-                "revenue_percentage": 25.5
-            }
-        ],
-        "summary": {
-            "total_customers": 600,
-            "highest_spending_group": "26-35",
-            "largest_group": "26-35",
-            "highest_rated_group": "46-55"
-        }
-    }
-    
-    BUGS TO FIND AND FIX:
-    - There are syntax errors, logical errors, and runtime errors
-    - Some calculations are incorrect
-    - Variable naming issues
-    - Data type problems
-    - Edge case handling missing
+    Returns:
+        Customer demographic breakdown with spending patterns and engagement metrics
     """
     try:
         if sales_df is None or sales_df.empty:
@@ -302,18 +276,19 @@ def analyze_customer_demographics() -> Dict[str, Any]:
         # Calculate demographic metrics for marketing intelligence
         demo_metrics = valid_age_data.groupby('age_group').agg({
             'customer_age': 'count',  # Customer count per segment
-            'revenue': ['sum', 'mean'],  # Revenue and avg spending
-            'customer_ratings': 'mean'  # Average customer rating
+            'revenue': ['sum', 'mean', 'count'],  # Revenue and spending patterns
+            'customer_rating': 'mean'  # Customer satisfaction by age group
         }).round(2)
         
-        demo_metrics.columns = ['customer_count', 'total_revenue', 'avg_spending', 'avg_rating', 'transaction_count']
+        # Flatten column names for easier processing
+        demo_metrics.columns = ['customer_count', 'total_revenue', 'avg_spending', 'transaction_count', 'avg_rating']
         
         # Calculate total revenue for percentage analysis
         total_revenue = float(valid_age_data['revenue'].sum())
         
         # Build demographic analysis for marketing strategy
         age_groups = []
-        age_order = ["18-25", "26-35", "36-45", "46-55", "56+"]
+        age_order = ["18-25", "26-35", "36-45", "46-55", "56+"]  # Ordered for reporting
         
         for age_range in age_order:
             if age_range in demo_metrics.index:
@@ -327,7 +302,7 @@ def analyze_customer_demographics() -> Dict[str, Any]:
                     "total_revenue": float(metrics['total_revenue']),
                     "avg_rating": float(metrics['avg_rating']) if pd.notna(metrics['avg_rating']) else None,
                     "transaction_count": int(metrics['transaction_count']),
-                    "revenue_percentage": revenue_percentage
+                    "revenue_percentage": round(revenue_percentage, 1)
                 })
         
         # Calculate summary insights for strategic planning
@@ -359,29 +334,13 @@ def analyze_customer_demographics() -> Dict[str, Any]:
             content=create_error_response(f"Error analyzing customer demographics: {str(e)}")
         )
 
+
+
 # Health check endpoint for monitoring
 @app.get("/health")
 def health_check():
     """API health check endpoint for monitoring and deployment verification."""
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
-
-# BONUS ENDPOINT: For testing purposes
-@app.get("/api/data-info")
-def get_data_info():
-    """Get basic information about the loaded dataset for debugging."""
-    if sales_df is None:
-        return {"message": "No data loaded"}
-    
-    return {
-        "total_records": len(sales_df),
-        "columns": list(sales_df.columns),
-        "date_range": {
-            "start": sales_df['purchase_date'].min().isoformat() if not sales_df.empty else None,
-            "end": sales_df['purchase_date'].max().isoformat() if not sales_df.empty else None
-        },
-        "categories": list(sales_df['category'].unique()) if 'category' in sales_df.columns else [],
-        "sample_data": sales_df.head(2).to_dict('records') if not sales_df.empty else []
-    }
 
 if __name__ == "__main__":
     import uvicorn
